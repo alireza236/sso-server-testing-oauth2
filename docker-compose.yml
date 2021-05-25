@@ -1,0 +1,62 @@
+# For more information: https://laravel.com/docs/sail
+version: '3'
+services:
+    sso-server-test:
+        build:
+            args:
+                user: alireza
+                uid: 1000
+            context: ./
+            dockerfile: Dockerfile
+        image: server-sso-test/app
+        environment:
+            SERVICE_NAME: app
+            SERVICE_TAGS: dev
+        container_name: sso-server-test
+        restart: unless-stopped
+        volumes:
+            - '.:/var/www'
+            - './docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini'
+        networks:
+            - sso-network
+        depends_on:
+            - sso-server-db
+    sso-server-webserver:
+        image: nginx:alpine
+        container_name: webserver
+        restart: unless-stopped
+        container_name: sso-server-webserver
+        tty: true
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - './:/var/www'
+            - './docker/nginx/conf.d/:/etc/nginx/conf.d/'
+        networks:
+            - sso-network
+    sso-server-db:
+        image: 'mysql:8.0'
+        ports:
+            - '${FORWARD_DB_PORT:-3306}:3306'
+        container_name: sso-server-db
+        environment:
+            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_DATABASE: '${DB_DATABASE}'
+            MYSQL_USER: '${DB_USERNAME}'
+            MYSQL_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+        volumes:
+            - 'sso-mysql:/var/lib/mysql'
+        networks:
+            - sso-network
+        healthcheck:
+          test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+
+networks:
+    sso-network:
+        driver: bridge
+volumes:
+    sso-mysql:
+        driver: local
+
